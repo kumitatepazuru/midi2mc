@@ -8,10 +8,11 @@ import tkinter.messagebox
 
 import mido
 import pretty_midi
-from tqdm import tqdm
 
 root = tkinter.Tk()
 root.withdraw()
+
+tkinter.messagebox.showinfo('確認', "midiファイルを選択してください")
 
 # ここの1行を変更　fTyp = [("","*")] →　fTyp = [("","*.csv")]
 fTyp = [("", "*.mid"), ("", "*.MID"), ("", "*.midi"), ("", "*.MIDI")]
@@ -23,12 +24,10 @@ try:
     midi_data = pretty_midi.PrettyMIDI(file)  # midiファイルを読み込みます
 except OSError as e:
     tkinter.messagebox.showerror("エラー", str(e))
-    sys.exit()
 except mido.midifiles.meta.KeySignatureError as e:
     tkinter.messagebox.showerror("エラー", str(e))
-    sys.exit()
 except AttributeError:
-    sys.exit()
+    pass
 else:
     # トラック別で取得
     midi_tracks = midi_data.instruments
@@ -51,7 +50,7 @@ else:
         if len(midi_tracks) - 1 < i:
             continue
         if midi_tracks[i].is_drum:
-            for note in tqdm(midi_tracks[i].notes):
+            for note in midi_tracks[i].notes:
                 dram = pretty_midi.note_number_to_drum_name(note.pitch)
                 if dram == "Acoustic Snare":
                     text += "execute at @a[scores={start=1}] run execute at @p[scores={timer=" + str(
@@ -70,7 +69,7 @@ else:
                         int(note.start / 0.05)) + "}] run playsound block.note_block.snare master @p ~ ~ ~ " + str(
                         note.velocity / 125) + " 1\n"
         else:
-            for note in tqdm(midi_tracks[i].notes):
+            for note in midi_tracks[i].notes:
                 if int(note.start / 0.05) > max_t:
                     max_t = int(note.start / 0.05)
                 if ok(note, 3):
@@ -87,38 +86,44 @@ else:
                         note.velocity / 100) + " " + Pitch(note, 5) + "\n"
     text += "execute at @a[scores={start=1}] run execute at @p[scores={timer=" + str(
         max_t) + "}] run function noteblock:stop"
-    try:
-        os.makedirs("noteblock/data/noteblock/functions/")
-        os.makedirs("noteblock/data/minecraft/tags/functions/")
-    except FileExistsError:
-        if not tkinter.messagebox.askyesno("確認", "常にフォルダが存在します。置き換えますか？"):
-            sys.exit()
-        else:
-            shutil.rmtree("noteblock")
-            os.makedirs("noteblock/data/noteblock/functions/")
-            os.makedirs("noteblock/data/minecraft/tags/functions/")
-    with open("noteblock/data/minecraft/tags/functions/tick.json", "w") as tick:
-        tick.write('{"values": ["noteblock:tick"]}')
-    with open("noteblock/data/noteblock/functions/start.mcfunction", "w") as start:
-        start.write("""bossbar add time "再生時間"
-    bossbar set minecraft:time players @a
-    bossbar set minecraft:time max """ + str(max_t) + """ 
-    scoreboard objectives add timer dummy
-    scoreboard players set @a timer 0
-    scoreboard objectives add start dummy
-    scoreboard players set @a start 1""")
 
-    with open("noteblock/data/noteblock/functions/stop.mcfunction", "w") as start:
-        start.write("""scoreboard objectives remove timer
-    bossbar set minecraft:time value 0
-    scoreboard objectives add start dummy
-    scoreboard players set @a start 0""")
+    tkinter.messagebox.showinfo('確認', "出力フォルダを選択してください")
 
-    with open("noteblock/data/noteblock/functions/tick.mcfunction", "w") as tick:
-        tick.write(text)
+    iDir = os.path.abspath(os.path.dirname(__file__))
+    file = tkinter.filedialog.askdirectory(initialdir=iDir)
+    if file != "":
+        try:
+            os.makedirs(file + "/noteblock/data/noteblock/functions/")
+            os.makedirs(file + "/noteblock/data/minecraft/tags/functions/")
+        except FileExistsError:
+            if not tkinter.messagebox.askyesno("確認", "常にフォルダが存在します。置き換えますか？"):
+                sys.exit()
+            else:
+                shutil.rmtree(file + "/noteblock")
+                os.makedirs(file + "/noteblock/data/noteblock/functions/")
+                os.makedirs(file + "/noteblock/data/minecraft/tags/functions/")
+        with open(file + "/noteblock/data/minecraft/tags/functions/tick.json", "w") as tick:
+            tick.write('{"values": ["noteblock:tick"]}')
+        with open(file + "/noteblock/data/noteblock/functions/start.mcfunction", "w") as start:
+            start.write("""bossbar add time "再生時間"
+        bossbar set minecraft:time players @a
+        bossbar set minecraft:time max """ + str(max_t) + """ 
+        scoreboard objectives add timer dummy
+        scoreboard players set @a timer 0
+        scoreboard objectives add start dummy
+        scoreboard players set @a start 1""")
 
-    with open("noteblock/pack.mcmeta", "w") as pack:
-        pack.write('{"pack": {"pack_format": 3,"description": "noteblock"}}')
+        with open(file + "/noteblock/data/noteblock/functions/stop.mcfunction", "w") as start:
+            start.write("""scoreboard objectives remove timer
+        bossbar set minecraft:time value 0
+        scoreboard objectives add start dummy
+        scoreboard players set @a start 0""")
 
-# 処理ファイル名の出力
-tkinter.messagebox.showinfo('出力が完了しました', "出力が完了しました")
+        with open(file + "/noteblock/data/noteblock/functions/tick.mcfunction", "w") as tick:
+            tick.write(text)
+
+        with open(file + "/noteblock/pack.mcmeta", "w") as pack:
+            pack.write('{"pack": {"pack_format": 3,"description": "noteblock"}}')
+
+        # 処理ファイル名の出力
+        tkinter.messagebox.showinfo('出力が完了しました', "出力が完了しました")
